@@ -17,7 +17,7 @@ definition(
     name: "Sony Android TV (Connect)",
     namespace: "Sanfe75",
     author: "Simone",
-    description: "Connect your Sony Android TV",
+    description: "Connect your Sony Bravia TV",
     category: "SmartThings Labs",
     iconUrl: "https://upload.wikimedia.org/wikipedia/commons/a/a8/Sony_Bravia_logo.svg",
     iconX2Url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Sony_Bravia_logo.svg/320px-Sony_Bravia_logo.svg.png",
@@ -27,23 +27,21 @@ definition(
 
 
 preferences {
-	/**
-	page(name: "searchTargetSelection", title: "UPnP Search Target", nextPage: "deviceDiscovery") {
-		section("Search Target") {
-			input "searchTarget", "string", title: "Search Target", defaultValue: "urn:schemas-upnp-org:device:MediaRenderer:1", required: true
-		}
-	}*/
-    def searchTarget = "urn:schemas-upnp-org:device:MediaRenderer:1"
-	page(name: "sonyDiscovery", title: "Sony Device Setup", content: "sonyDiscovery")
+    
+	page(name: "deviceDiscovery", title: "Sony Device Discovery", content: "deviceDiscovery")
+    page(name: "deviceSetup", title: "Sony Device Setup", content: "deviceSetup")
+    
 }
 
-def sonyDiscovery() {
+def searchTarget() {
+	return "urn:schemas-upnp-org:device:MediaRenderer:1"
+}
+
+def deviceDiscovery() {
 	def options = [:]
 	def devices = getVerifiedDevices()
 	devices.each {
-    	log.debug "it.value: ${it.value.getSupportedAttributes()}"
-		//def value = it.value.name ?: "UPnP Device ${it.value.ssdpUSN.split(':')[1][-3..-1]}"
-        def value = it.value.getSupportedAttributes()
+		def value = it.value.name ?: "UPnP Device ${it.value.ssdpUSN.split(':')[1][-3..-1]}"
 		def key = it.value.mac
 		options["${key}"] = value
 	}
@@ -52,10 +50,47 @@ def sonyDiscovery() {
 
 	ssdpDiscover()
 	verifyDevices()
+    
+    state.index = 0
 
-	return dynamicPage(name: "sonyDiscovery", title: "Discovery Started!", nextPage: "", refreshInterval: 5, install: true, uninstall: true) {
-		section("Please wait while we discover your UPnP Device. Discovery can take five minutes or more, so sit back and relax! Select your device below once discovered.") {
-			input "selectedDevices", "enum", required: false, title: "Select Devices (${options.size() ?: 0} found)", multiple: true, options: options
+	return dynamicPage(name: "deviceDiscovery", title: "Discovery Started!", nextPage: "deviceSetup", refreshInterval: 5, install: false, uninstall: true) {
+		section("Please wait while we discover your Bravia TV. Discovery can take five minutes or more, so sit back and relax! Select your device below once discovered.") {
+			input "selectedDevices", "enum", required: true, title: "Select Devices (${options.size() ?: 0} found)", multiple: true, options: options
+		}
+	}
+}
+
+def deviceSetup() {
+
+	log.debug "deviceSetup state.index: ${state.index}"
+	if (state.index > 0) {
+        putInDevice([tvName: tvName, tvIcon: tvIcon, tvPort: tvPort, tvPSK: tvPSK])
+        log.debug "deviceSetup selectedDevices[state.index - 1].value: ${selectedDevices[state.index - 1].value}"
+    }
+    
+	state.index = state.index + 1
+    def isLast = state.index >= selectedDevices.size()
+    def nextPage = ""
+    if (!isLast) {
+    	nextPage = "deviceSetup"
+    }
+    
+    def mac = selectedDevices[state.index - 1]
+    def device = getDevices().find {it.value.mac == mac}
+    def child = getChildDevice(mac)
+    def newDevice = false
+    if (!getChildDevice(mac)) {
+    	newDevice = true
+    }
+
+	return dynamicPage(name: "deviceSetup", nextPage: nextPage, install: isLast, uninstall: true) {
+		section("Please input the Device info for ${device.value.name}") {
+			if (newDevice) {
+            	input(name: "tvName", type: "text", title: "Name for the Sony TV Device", defaultValue: device.value.name, required: true)
+            }
+        	icon(name: "tvIcon:", title: "Choose an icon for the TV", required: true)
+        	input(name: "tvPort", type: "number", range: "0..9999", title: "Port", defaultValue: device.value.tvPort, required: true)
+			input(name: "tvPSK", type: "password", title: "PSK Passphrase set on your TV", description: "Enter passphrase", required: true)
 		}
 	}
 }
@@ -71,27 +106,39 @@ def updated() {
 
 	unsubscribe()
 	initialize()
+    
+    selectedDevices.each {
+    	def child = getChildDevice(it)
+        def mac = it
+		if (child) {
+        	def selectedDevice = getDevices().find { mac == it.value.mac}
+			child.update(selectedDevice.value.tvIcon, selectedDevice.value.tvPort, selectedDevice.value.tvPSK)
+		}
+    }
 }
 
 def initialize() {
-	unsubscribe()
+	//unsubscribe()
 	unschedule()
 
 	ssdpSubscribe()
+
+    putInDevice([tvName: tvName, tvIcon: tvIcon, tvPort: tvPort, tvPSK: tvPSK])
 
 	if (selectedDevices) {
 		addDevices()
 	}
 
 	runEvery5Minutes("ssdpDiscover")
+    state.index = 0
 }
 
 void ssdpDiscover() {
-	sendHubCommand(new physicalgraph.device.HubAction("lan discovery ${searchTarget}", physicalgraph.device.Protocol.LAN))
+	sendHubCommand(new physicalgraph.device.HubAction("lan discovery ${searchTarget()}", physicalgraph.device.Protocol.LAN))
 }
 
 void ssdpSubscribe() {
-	subscribe(location, "ssdpTerm.${searchTarget}", ssdpHandler)
+	subscribe(location, "ssdpTerm.${searchTarget()}", ssdpHandler)
 }
 
 Map verifiedDevices() {
@@ -126,6 +173,14 @@ def getDevices() {
 	state.devices
 }
 
+def putInDevice(newValues){
+	
+    def devices = getDevices()
+    def device = devices.find {it.value.mac == selectedDevices[state.index - 1]}
+    device.value << newValues
+    log.debug "putInDevice device.value: ${device.value}"
+}
+
 def addDevices() {
 	def devices = getDevices()
 
@@ -139,13 +194,15 @@ def addDevices() {
 		}
 
 		if (!d) {
-			log.debug "Creating Sony TV with dni: ${selectedDevice.value.mac}"
+
 			addChildDevice("Sanfe75", "Sony TV", selectedDevice.value.mac, selectedDevice?.value.hub, [
-				"label": selectedDevice?.value?.name ?: "Sony TV",
+				"label": selectedDevice.value?.tvName ?: selectedDevice.value.name,
 				"data": [
 					"mac": selectedDevice.value.mac,
-					"ip": selectedDevice.value.networkAddress,
-					"port": selectedDevice.value.deviceAddress
+					"ip": convertHexToIP(selectedDevice.value.networkAddress),
+                    "port": selectedDevice.value.tvPort,
+                    "tvIcon": selectedDevice.value.tvIcon,
+                    "tvPSK": selectedDevice.value.tvPSK
 				]
 			])
 		}
@@ -153,11 +210,13 @@ def addDevices() {
 }
 
 def ssdpHandler(evt) {
+
 	def description = evt.description
 	def hub = evt?.hubId
-
-	def parsedEvent = parseLanMessage(description)
+    def parsedEvent = parseLanMessage(description)
 	parsedEvent << ["hub":hub]
+    
+    //log.debug "ssdpHandler parsedEvent: ${parsedEvent}"
 
 	def devices = getDevices()
 	String ssdpUSN = parsedEvent.ssdpUSN.toString()
@@ -168,7 +227,7 @@ def ssdpHandler(evt) {
 			d.deviceAddress = parsedEvent.deviceAddress
 			def child = getChildDevice(parsedEvent.mac)
 			if (child) {
-				child.sync(parsedEvent.networkAddress, parsedEvent.deviceAddress)
+				child.sync(convertHexToIP(parsedEvent.networkAddress))
 			}
 		}
 	} else {
@@ -178,10 +237,17 @@ def ssdpHandler(evt) {
 
 void deviceDescriptionHandler(physicalgraph.device.HubResponse hubResponse) {
 	def body = hubResponse.xml
+    body.children().each {
+    	log.debug "deviceDescriptionHandler children: ${it.name()} --> ${it.text()}"
+    }  
+    body.device.children().each {
+    	log.debug "deviceDescriptionHandler device.children: ${it.name()} --> ${it.text()}"
+    }    
+    
 	def devices = getDevices()
 	def device = devices.find { it?.key?.contains(body?.device?.UDN?.text()) }
 	if (device) {
-		device.value << [name: body?.device?.roomName?.text(), model:body?.device?.modelName?.text(), serialNumber:body?.device?.serialNum?.text(), verified: true]
+		device.value << [name: body?.device?.friendlyName?.text(), model:body?.device?.modelName?.text(), serialNumber:body?.device?.serialNum?.text(), verified: true]
 	}
 }
 
@@ -192,4 +258,3 @@ private Integer convertHexToInt(hex) {
 private String convertHexToIP(hex) {
 	[convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
 }
-
