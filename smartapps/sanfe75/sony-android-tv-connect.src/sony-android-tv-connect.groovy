@@ -65,30 +65,22 @@ def deviceSetup() {
 	log.debug "deviceSetup state.index: ${state.index}"
 	if (state.index > 0) {
         putInDevice([tvName: tvName, tvIcon: tvIcon, tvPort: tvPort, tvPSK: tvPSK])
-        log.debug "deviceSetup selectedDevices[state.index - 1].value: ${selectedDevices[state.index - 1].value}"
     }
     
 	state.index = state.index + 1
     def isLast = state.index >= selectedDevices.size()
-    def nextPage = ""
-    if (!isLast) {
-    	nextPage = "deviceSetup"
-    }
-    
+    def nextPage = isLast? "" : "deviceSetup"
     def mac = selectedDevices[state.index - 1]
     def device = getDevices().find {it.value.mac == mac}
     def child = getChildDevice(mac)
-    def newDevice = false
-    if (!getChildDevice(mac)) {
-    	newDevice = true
-    }
+    def newDevice = (!getChildDevice(mac)) ? true : false
 
 	return dynamicPage(name: "deviceSetup", nextPage: nextPage, install: isLast, uninstall: true) {
 		section("Please input the Device info for ${device.value.name}") {
 			if (newDevice) {
             	input(name: "tvName", type: "text", title: "Name for the Sony TV Device", defaultValue: device.value.name, required: true)
+                input(name: "tvIcon", type: "icon", title: "Choose an icon for the TV", required: true)
             }
-        	icon(name: "tvIcon:", title: "Choose an icon for the TV", required: true)
         	input(name: "tvPort", type: "number", range: "0..9999", title: "Port", defaultValue: device.value.tvPort, required: true)
 			input(name: "tvPSK", type: "password", title: "PSK Passphrase set on your TV", description: "Enter passphrase", required: true)
 		}
@@ -118,7 +110,7 @@ def updated() {
 }
 
 def initialize() {
-	//unsubscribe()
+
 	unschedule()
 
 	ssdpSubscribe()
@@ -178,7 +170,7 @@ def putInDevice(newValues){
     def devices = getDevices()
     def device = devices.find {it.value.mac == selectedDevices[state.index - 1]}
     device.value << newValues
-    log.debug "putInDevice device.value: ${device.value}"
+    //log.debug "putInDevice device.value: ${device.value}"
 }
 
 def addDevices() {
