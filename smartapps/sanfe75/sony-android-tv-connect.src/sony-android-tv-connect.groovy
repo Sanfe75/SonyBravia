@@ -8,6 +8,8 @@
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
+ *  Please make sure the TV is on when you set up the device. 
+ *
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
@@ -38,6 +40,7 @@ def searchTarget() {
 }
 
 def deviceDiscovery() {
+
 	def options = [:]
 	def devices = getVerifiedDevices()
 	devices.each {
@@ -62,9 +65,14 @@ def deviceDiscovery() {
 
 def deviceSetup() {
 
-	log.debug "deviceSetup state.index: ${state.index}"
+    def child = getChildDevice(mac)
+    def newDevice = (!child) ? true : false
 	if (state.index > 0) {
-        putInDevice([tvName: tvName, tvIcon: tvIcon, tvPort: tvPort, tvPSK: tvPSK])
+    	if (newDevice) {
+        	putInDevice([tvName: tvName, tvPort: tvPort, tvPSK: tvPSK])
+        } else {
+        	putInDevice([tvPort: tvPort, tvPSK: tvPSK])
+        }
     }
     
 	state.index = state.index + 1
@@ -72,14 +80,13 @@ def deviceSetup() {
     def nextPage = isLast? "" : "deviceSetup"
     def mac = selectedDevices[state.index - 1]
     def device = getDevices().find {it.value.mac == mac}
-    def child = getChildDevice(mac)
-    def newDevice = (!getChildDevice(mac)) ? true : false
+    
 
 	return dynamicPage(name: "deviceSetup", nextPage: nextPage, install: isLast, uninstall: true) {
 		section("Please input the Device info for ${device.value.name}") {
 			if (newDevice) {
             	input(name: "tvName", type: "text", title: "Name for the Sony TV Device", defaultValue: device.value.name, required: true)
-                input(name: "tvIcon", type: "icon", title: "Choose an icon for the TV", required: true)
+                //input(name: "tvIcon", type: "icon", title: "Choose an icon for the TV", required: true)
             }
         	input(name: "tvPort", type: "number", range: "0..9999", title: "Port", defaultValue: device.value.tvPort, required: true)
 			input(name: "tvPSK", type: "password", title: "PSK Passphrase set on your TV", description: "Enter passphrase", required: true)
@@ -103,8 +110,8 @@ def updated() {
     	def child = getChildDevice(it)
         def mac = it
 		if (child) {
-        	def selectedDevice = getDevices().find { mac == it.value.mac}
-			child.update(selectedDevice.value.tvIcon, selectedDevice.value.tvPort, selectedDevice.value.tvPSK)
+            def selectedDevice = getDevices().find { mac == it.value.mac}
+			child.update(selectedDevice.value.tvPort, selectedDevice.value.tvPSK)
 		}
     }
 }
@@ -114,8 +121,12 @@ def initialize() {
 	unschedule()
 
 	ssdpSubscribe()
-
-    putInDevice([tvName: tvName, tvIcon: tvIcon, tvPort: tvPort, tvPSK: tvPSK])
+	
+    if (tvName) {
+    	putInDevice([tvName: tvName, tvPort: tvPort, tvPSK: tvPSK])
+    } else {
+    	putInDevice([tvPort: tvPort, tvPSK: tvPSK])
+    }
 
 	if (selectedDevices) {
 		addDevices()
@@ -187,13 +198,13 @@ def addDevices() {
 
 		if (!d) {
 
-			addChildDevice("Sanfe75", "Sony TV", selectedDevice.value.mac, selectedDevice?.value.hub, [
+			addChildDevice(/*getNamespace()*/"Sanfe75", "Sony TV", selectedDevice.value.mac, selectedDevice?.value.hub, [
 				"label": selectedDevice.value?.tvName ?: selectedDevice.value.name,
 				"data": [
-					"mac": selectedDevice.value.mac,
+					//"mac": selectedDevice.value.mac,
 					"ip": convertHexToIP(selectedDevice.value.networkAddress),
                     "port": selectedDevice.value.tvPort,
-                    "tvIcon": selectedDevice.value.tvIcon,
+                    //"tvIcon": selectedDevice.value.tvIcon,
                     "tvPSK": selectedDevice.value.tvPSK
 				]
 			])
