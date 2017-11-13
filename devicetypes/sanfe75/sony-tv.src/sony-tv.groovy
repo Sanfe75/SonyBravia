@@ -27,39 +27,71 @@ metadata {
         command "volumeDown"
         command "channelUp"
         command "channelDown"
+        command "cursorUp"
+        command "cursorDown"
+        command "cursorLeft"
+        command "cursorRight"
+        command "home"
+        command "mute"
 	}
 
-	tiles(scale: 2) {
-		standardTile("switch", "device.switch", width: 4, height: 4, canChangeIcon: true) {
+	tiles(scale: 1) {
+		standardTile("switch", "device.switch", width: 1, height: 1, canChangeIcon: true, decoration: "flat") {
         	state "off", label: '${name}', action: "switch.on", icon: "st.Entertainment.entertainment14", backgroundColor: "#ffffff"
             state "on", label: 'ON', action: "switch.off", icon: "st.Entertainment.entertainment14", backgroundColor: "#79b821"
 		}
-        /*
-        def tiles = ["volumeUp", "volumeDown", "channelUp", "channelDown"]
-        tiles.each {
-        	standardTile(it, "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
-			state "default", label:it, action:it, icon:""
-            }
-		}*/
         
 		standardTile("volumeUp", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
-			state "default", label:"volumeUp", action:"volumeUp", icon:"st.thermostat.thermostat-up"
+			state "default", label:"Volume", action:"volumeUp", icon:"st.thermostat.thermostat-up"
 		} 
 
 		standardTile("volumeDown", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
-			state "default", label:"volumeDown", action:"volumeDown", icon:"st.thermostat.thermostat-down"
+			state "default", label:"Volume", action:"volumeDown", icon:"st.thermostat.thermostat-down"
 		} 
 
 		standardTile("channelUp", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
-			state "default", label:"channelUp", action:"channelUp", icon:""
+			state "default", label:"Channel", action:"channelUp", icon:"st.thermostat.thermostat-up"
 		}
 
 		standardTile("channelDown", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
-			state "default", label:"channelDown", action:"channelDown", icon:""
+			state "default", label:"Channel", action:"channelDown", icon:"st.thermostat.thermostat-down"
 		}
         
+                
+        standardTile("cursorUp", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"", action:"cursorUp", icon:"st.thermostat.thermostat-up"
+		}
+        
+        standardTile("cursorDown", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"", action:"cursorDown", icon:"st.thermostat.thermostat-down"
+		}
+                
+        standardTile("cursorLeft", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"", action:"cursorLeft", icon:"st.thermostat.thermostat-left"
+		}
+                
+        standardTile("cursorRight", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"", action:"cursorRight", icon:"st.thermostat.thermostat-right"
+		}
+                        
+        standardTile("cursorEnter", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"⏎", action:"cursorEnter", icon:""
+		}
+        
+        standardTile("home", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"", action:"home", icon:"st.Home.home2"
+		}
+        
+        standardTile("mute", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"Mute", action:"mute", icon:"st.custom.sonos.muted"
+    	}
+        
+        standardTile("exit", "device.switch", inactiveLabel: false, height: 1, width: 1, decoration: "flat") {
+			state "default", label:"", action:"exit", icon:"st.samsung.da.washer_ic_cancel"
+    	}
+        
         main "switch"
-        details(["volumeUp", "switch", "channelUp", "volumeDown", "channelDown"])
+        details(["volumeUp", "switch", "channelUp", "volumeDown", "cursorUp", "channelDown", "cursorLeft", "cursorEnter", "cursorRight", "exit", "cursorDown", "home"])
 	}
 }
 
@@ -78,7 +110,6 @@ def installed() {
 def initialize() {
 
     runEvery1Minute("pushPowerUpdate")
-	//subscribeAction("/sony/system")
 }
 
 // parse events into attributes
@@ -109,10 +140,10 @@ def update(tvPort, tvPSK){
     def existingPort = getDataValue("port")
     def existingPSK = getDataValue("tvPSK")
 
-    if (tvPort && tvPort != exixtingPort) {
+    if (tvPort && tvPort != existingPort) {
     	updateDataValue("port", String.valueOf(tvPort))
 	}
-    if (tvPSK && tvPSK != exixtingPSK) {
+    if (tvPSK && tvPSK != existingPSK) {
     	updateDataValue("tvPSK", tvPSK)
 	}
 }
@@ -128,8 +159,6 @@ private pushPowerUpdate() {
 
     def powerJson = "{\"id\":2,\"method\":\"getPowerStatus\",\"version\":\"1.0\",\"params\":[]}"
     def result = sendJsonRpcCommand(powerJson)
-    /*def modeJson = "{\"id\":3,\"method\":\"getDeviceMode\",\"version\":\"1.0\",\"params\":[\"game\"]}"
-    def mode = sendJsonRpcCommand(modeJson)*/
 }
 /*
 private subscribeAction(path, callbackPath="") {
@@ -229,13 +258,76 @@ def channelDown() {
 	sendremotecommand(rawcmd)
 }
 
+def cursorUp() {
+
+	log.debug "Executing 'cursorUp'"
+
+	def rawcmd = "AAAAAQAAAAEAAAB0Aw=="
+	sendremotecommand(rawcmd)
+}
+
+def cursorDown() {
+
+	log.debug "Executing 'cursorDown'"
+
+	def rawcmd = "AAAAAQAAAAEAAAB1Aw=="
+	sendremotecommand(rawcmd)
+}
+
+def cursorLeft() {
+
+	log.debug "Executing 'cursorLeft'"
+
+	def rawcmd = "AAAAAQAAAAEAAAA0Aw=="
+	sendremotecommand(rawcmd)
+}
+
+def cursorRight() {
+
+	log.debug "Executing 'cursorRight'"
+
+	def rawcmd = "AAAAAQAAAAEAAAAzAw=="
+	sendremotecommand(rawcmd)
+}
+
+def cursorEnter() {
+
+	log.debug "Executing 'cursorEnter'"
+
+	def rawcmd = "AAAAAgAAAJcAAAAjAw=="
+	sendremotecommand(rawcmd)
+}
+
+def home() {
+
+	log.debug "Executing 'home'"
+    
+    def rawcmd = "AAAAAQAAAAEAAABgAw=="
+    sendremotecommand(rawcmd)
+}
+
+def exit() {
+
+	log.debug "Executing 'exit'"
+    
+    def rawcmd = "AAAAAQAAAAEAAABjAw=="
+    sendremotecommand(rawcmd)
+}
+
+def mute() {
+
+	log.debug "Executing 'mute'"
+    
+    def rawcmd = "AAAAAQAAAAEAAAAUAw=="
+    sendremotecommand(rawcmd)
+}
+
 def WOLC() {
 
     //log.debug "WOLC mac: ${getDataValue("mac")}"
     log.debug "WOLC mac: ${device.deviceNetworkId}"
     
 	def result = new physicalgraph.device.HubAction (
-  	  	//"wake on lan ${getDataValue("mac")}",
         "wake on lan ${device.deviceNetworkId}",
    		physicalgraph.device.Protocol.LAN,
    		null,
