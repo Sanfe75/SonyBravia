@@ -86,7 +86,6 @@ def deviceSetup() {
 		section("Please input the Device info for ${device.value.name}") {
 			if (newDevice) {
             	input(name: "tvName", type: "text", title: "Name for the Sony TV Device", defaultValue: device.value.name, required: true)
-                //input(name: "tvIcon", type: "icon", title: "Choose an icon for the TV", required: true)
             }
         	input(name: "tvPort", type: "number", range: "0..9999", title: "Port", defaultValue: device.value.tvPort, required: true)
 			input(name: "tvPSK", type: "password", title: "PSK Passphrase set on your TV", description: "Enter passphrase", required: true)
